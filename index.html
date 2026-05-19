@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BarbaCena Cultural</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.backend.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img class="logo-image" src="images/BarbaCena.png" alt="Logomarca BarbaCena" />
+        <div>
+          <h1>BarbaCena Cultural</h1>
+          <p>Um portal dedicado à cultura de Barbacena e região, reunindo notícias, eventos, artistas, movimentos e expressões culturais que dão voz e identidade à cena local.</p>
+        </div>
+      </div>
+      <nav class="nav-bar">
+        <button class="nav-button active" data-target="home">Home</button>
+        <button class="nav-button" data-target="news">Notícias</button>
+        <button class="nav-button" data-target="gallery">Fotos</button>
+        <button class="nav-button" data-target="movements">Movimentos</button>
+      </nav>
+    </header>
+
+    <main class="page-container">
+      <section id="home" class="page-section active">
+        <div class="hero-card">
+        <div class="hero-card-media">
+          <img src="images/BarbaCena.png" alt="Logo BarbaCena" />
+        </div>
+        <div>
+          <h2>A voz da cultura em Barbacena e região.</h2>
+          <p>
+            Um espaço dedicado aos artistas, eventos, movimentos e expressões culturais que fazem parte da cena de Barbacena e região, da música e do hip hop até a fotografia, cinema, arte urbana e movimentos independentes.
+          </p>
+          <div class="hero-actions">
+            <button class="primary-button" data-target="news">Ver notícias</button>
+            <button class="secondary-button" data-target="gallery">Ver fotos</button>
+            <button class="secondary-button" data-target="movements">Ver movimentos</button>
+          </div>
+        </div>
+      </div>
+
+        <div class="summary-grid">
+          <article class="summary-card">
+            <h3>Notícias</h3>
+            <p>Últimas da cena cultural</p>
+          </article>
+          <article class="summary-card">
+            <h3>Fragmentos da Cidade</h3>
+            <p>Registros visuais de eventos, encontros e martes e etc</p>
+          </article>
+          <article class="summary-card">
+            <h3>Cultura Viva</h3>
+            <p>Espaço dedicado à divulgação de eventos, projetos, coletivos, movimentos culturais e etc</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="news" class="page-section">
+        <div class="section-header">
+          <div>
+            <h2>Notícias</h2>
+            <p>Notícias culturais e novidades artísticas da cidade.</p>
+          </div>
+        </div>
+
+        <div id="news-list" class="cards-grid"></div>
+      </section>
+
+      <section id="gallery" class="page-section">
+        <div class="section-header">
+          <div>
+            <h2>Fragmentos da Cidade</h2>
+            <p>Registros visuais de eventos, encontros e martes e etc</p>
+          </div>
+        </div>
+
+        <div id="gallery-list" class="cards-grid"></div>
+      </section>
+
+      <section id="movements" class="page-section">
+        <div class="section-header">
+          <div>
+            <h2>Cultura Viva</h2>
+            <p>Espaço dedicado à divulgação de eventos, projetos, coletivos, movimentos culturais e etc.</p>
+          </div>
+        </div>
+
+        <div id="movement-list" class="cards-grid"></div>
+      </section>
+
+    </main>
+  </body>
+</html>

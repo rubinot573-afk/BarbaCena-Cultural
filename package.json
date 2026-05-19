@@ -1,0 +1,13 @@
+{
+  "name": "portal-da-arte",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Portal da Arte com backend para publicar notícias em qualquer navegador",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.4"
+  }
+}

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin BarbaCena Cultural</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="admin.backend.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🛠️</span>
+        <div>
+          <h1>Admin BarbaCena Cultural</h1>
+          <p>Apenas você faz postagens e edições aqui.</p>
+        </div>
+      </div>
+      <nav class="nav-bar admin-nav">
+        <button class="nav-button active" data-target="dashboard">Painel</button>
+        <button class="nav-button" data-target="news">Notícias</button>
+        <button class="nav-button" data-target="gallery">Fotos</button>
+        <button class="nav-button" data-target="movements">Movimentos</button>
+      </nav>
+    </header>
+
+    <main class="page-container">
+      <section id="dashboard" class="page-section active admin-section">
+        <div class="hero-card admin-hero">
+          <h2>Área administrativa</h2>
+          <p>Use esta página para criar, editar e excluir conteúdo do Portal da Arte.</p>
+          <p class="admin-note">A página `admin.html` não aparece no site público. Apenas quem souber o endereço e a senha consegue acessar.</p>
+        </div>
+      </section>
+
+      <section id="news" class="page-section admin-section hidden">
+        <div class="section-header">
+          <div>
+            <h2>Notícias</h2>
+            <p>Adicione ou edite notícias culturais da sua cidade.</p>
+          </div>
+          <button class="primary-button" id="show-news-form">Nova notícia</button>
+        </div>
+
+        <div id="news-form-card" class="form-card hidden">
+          <h3 id="news-form-title">Nova notícia</h3>
+          <form id="news-form">
+            <input type="hidden" id="news-index" value="" />
+            <label>
+              Título
+              <input type="text" id="news-title" placeholder="Título da notícia" required />
+            </label>
+            <label>
+              Texto
+              <textarea id="news-content" rows="4" placeholder="Conteúdo da notícia" required></textarea>
+            </label>
+            <label>
+              URL da imagem
+              <input type="url" id="news-image" placeholder="https://..." />
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-button">Salvar</button>
+              <button type="button" class="secondary-button" id="cancel-news">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="news-list" class="cards-grid"></div>
+      </section>
+
+      <section id="gallery" class="page-section admin-section hidden">
+        <div class="section-header">
+          <div>
+            <h2>Fotos</h2>
+            <p>Adicione imagens</p>
+          </div>
+          <button class="primary-button" id="show-gallery-form">Nova foto</button>
+        </div>
+
+        <div id="gallery-form-card" class="form-card hidden">
+          <h3 id="gallery-form-title">Nova foto</h3>
+          <form id="gallery-form">
+            <input type="hidden" id="gallery-index" value="" />
+            <label>
+              Título
+              <input type="text" id="gallery-title" placeholder="Título da imagem" required />
+            </label>
+            <label>
+              URL da imagem
+              <input type="url" id="gallery-image" placeholder="https://..." required />
+            </label>
+            <label>
+              Descrição
+              <textarea id="gallery-description" rows="3" placeholder="Descrição da foto"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-button">Salvar</button>
+              <button type="button" class="secondary-button" id="cancel-gallery">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="gallery-list" class="cards-grid"></div>
+      </section>
+
+      <section id="movements" class="page-section admin-section hidden">
+        <div class="section-header">
+          <div>
+            <h2>Movimentos</h2>
+            <p>Gerencie coletivos, exposições e ações artísticas.</p>
+          </div>
+          <button class="primary-button" id="show-movement-form">Novo movimento</button>
+        </div>
+
+        <div id="movement-form-card" class="form-card hidden">
+          <h3 id="movement-form-title">Novo movimento</h3>
+          <form id="movement-form">
+            <input type="hidden" id="movement-index" value="" />
+            <label>
+              Nome
+              <input type="text" id="movement-name" placeholder="Nome do movimento" required />
+            </label>
+            <label>
+              Categoria
+              <input type="text" id="movement-category" placeholder="Categoria (arte de rua, performance, etc.)" />
+            </label>
+            <label>
+              Descrição
+              <textarea id="movement-description" rows="4" placeholder="Descrição do movimento" required></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-button">Salvar</button>
+              <button type="button" class="secondary-button" id="cancel-movement">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="movement-list" class="cards-grid"></div>
+      </section>
+
+      <section class="page-section admin-section hidden" id="admin-login">
+        <div class="form-card">
+          <h3>Acesso secreto</h3>
+          <p>Digite a senha para acessar o painel administrativo.</p>
+          <form id="login-form">
+            <label>
+              Senha
+              <input type="password" id="login-password" placeholder="Senha secreta" required />
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-button">Entrar</button>
+            </div>
+          </form>
+          <p class="login-note">Esta página não está vinculada ao site público.</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

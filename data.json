@@ -1,0 +1,32 @@
+{
+  "theme": {
+    "primary": "#6a0dad",
+    "secondary": "#f2c9ff",
+    "background": "#1b1b1b",
+    "text": "#222222",
+    "fontFamily": "Inter, sans-serif",
+    "fontSize": 16
+  },
+  "news": [
+    {
+      "title": "Inauguração do novo centro cultural",
+      "content": "Venha conhecer o espaço dedicado a exposições, música e residências artísticas na cidade.",
+      "image": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+      "date": "2026-05-19"
+    }
+  ],
+  "gallery": [
+    {
+      "title": "Arte de rua recente",
+      "image": "https://images.unsplash.com/photo-1529429617124-7b4e6e85724b?auto=format&fit=crop&w=900&q=80",
+      "description": "Um painel colorido que celebra a cultura local e a arte urbana."
+    }
+  ],
+  "movements": [
+    {
+      "name": "Coletivo Aurora",
+      "category": "Arte urbana",
+      "description": "Grupo de artistas que promove intervenções visuais e oficinas na cidade."
+    }
+  ]
+}
