@@ -401,3 +401,8 @@ button {
 button:hover {
   opacity: 0.9;
 }
+
+/* Espaçamento correto entre o título e o texto das notícias */
+.card div h3 {
+  margin-bottom: 12px !important;
+}
