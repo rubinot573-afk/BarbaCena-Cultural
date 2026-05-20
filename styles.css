@@ -381,3 +381,23 @@ textarea {
     margin-bottom: 2rem;
   }
 }
+
+/* Padroniza a cor de fundo e da fonte de todos os botões do portal */
+.nav-button, 
+.card-footer button, 
+button {
+  background-color: var(--primary) !important; /* Mesma cor de fundo para todos */
+  color: var(--secondary) !important;       /* Mesma cor de fonte para todos */
+  border: 1px solid var(--secondary);        /* Uma borda sutil para acabamento */
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+/* Efeito visual simples ao passar o mouse por cima */
+.nav-button:hover, 
+.card-footer button:hover, 
+button:hover {
+  opacity: 0.9;
+}
