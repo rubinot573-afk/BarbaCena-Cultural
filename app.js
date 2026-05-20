@@ -1,5 +1,3 @@
-const STORAGE_KEY = 'BarbaCena Cultural';
-
 const ui = {
   targetButtons: document.querySelectorAll('[data-target]'),
   pageSections: document.querySelectorAll('.page-section'),
@@ -8,60 +6,40 @@ const ui = {
   movementList: document.getElementById('movement-list'),
 };
 
-const defaultState = {
-  theme: {
-    primary: '#6a0dad',
-    secondary: '#f2c9ff',
-    background: '#1b1b1b',
-    text: '#222222',
-    fontFamily: 'Inter, sans-serif',
-    fontSize: 16,
-  },
-  news: [
-    {
-      title: 'Inauguração do novo centro cultural',
-      content: 'Um portal dedicado à cultura de Barbacena e região, reunindo notícias, eventos, artistas, movimentos e expressões culturais que dão voz e identidade à cena local..',
-      image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
-      date: new Date().toLocaleDateString('pt-BR'),
-    },
-  ],
-  gallery: [
-    {
-      title: 'Arte de rua recente',
-      image: 'https://images.unsplash.com/photo-1529429617124-7b4e6e85724b?auto=format&fit=crop&w=900&q=80',
-      description: 'Um painel colorido que celebra a cultura local e a arte urbana.',
-    },
-  ],
-  movements: [
-    {
-      name: 'Coletivo Aurora',
-      category: 'Arte urbana',
-      description: 'Grupo de artistas que promove intervenções visuais e oficinas na cidade.',
-    },
-  ],
+const defaultTheme = {
+  primary: '#6a0dad',
+  secondary: '#f2c9ff',
+  background: '#1b1b1b',
+  text: '#222222',
+  fontFamily: 'Inter, sans-serif',
+  fontSize: 16,
 };
 
-let state = loadState();
+let state = {
+  theme: defaultTheme,
+  news: [],
+  gallery: [],
+  movements: [],
+};
 
-function loadState() {
+// Busca todas as notícias, fotos e movimentos salvos no MongoDB Atlas
+async function fetchContent() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return defaultState;
-    const parsed = JSON.parse(saved);
-    return {
-      theme: { ...defaultState.theme, ...parsed.theme },
-      news: Array.isArray(parsed.news) ? parsed.news : defaultState.news,
-      gallery: Array.isArray(parsed.gallery) ? parsed.gallery : defaultState.gallery,
-      movements: Array.isArray(parsed.movements) ? parsed.movements : defaultState.movements,
-    };
-  } catch (error) {
-    console.error('Erro ao carregar dados:', error);
-    return defaultState;
-  }
-}
+    const response = await fetch('/api/content');
+    if (!response.ok) throw new Error('Erro ao buscar dados do servidor');
+    const data = await response.json();
+    
+    state.news = data.news || [];
+    state.gallery = data.gallery || [];
+    state.movements = data.movements || [];
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderNews();
+    renderGallery();
+    renderMovements();
+  } catch (error) {
+    console.error('Erro ao conectar com a API:', error);
+    ui.newsList.innerHTML = '<p>Erro ao carregar o conteúdo do servidor.</p>';
+  }
 }
 
 function applyTheme() {
@@ -80,9 +58,11 @@ function renderNews() {
     ui.newsList.innerHTML = '<p>Sem notícias por enquanto.</p>';
     return;
   }
+  // Exibe as notícias invertidas (as mais recentes primeiro) usando o ID do MongoDB
   state.news.slice().reverse().forEach((item) => {
     const card = document.createElement('article');
     card.className = 'card';
+    card.setAttribute('data-id', item._id); // Guarda o ID único do MongoDB no HTML
     card.innerHTML = `
       ${item.image ? `<img src="${item.image}" alt="${item.title}" />` : ''}
       <div>
@@ -106,11 +86,12 @@ function renderGallery() {
   state.gallery.slice().reverse().forEach((item) => {
     const card = document.createElement('article');
     card.className = 'card';
+    card.setAttribute('data-id', item._id);
     card.innerHTML = `
       <img src="${item.image}" alt="${item.title}" />
       <div>
         <h3>${item.title}</h3>
-        <p>${item.description}</p>
+        <p>${item.description || ''}</p>
       </div>
     `;
     ui.galleryList.appendChild(card);
@@ -126,6 +107,7 @@ function renderMovements() {
   state.movements.slice().reverse().forEach((item) => {
     const card = document.createElement('article');
     card.className = 'card';
+    card.setAttribute('data-id', item._id);
     card.innerHTML = `
       <div>
         <h3>${item.name}</h3>
@@ -154,11 +136,9 @@ function addEventListeners() {
 
 function init() {
   applyTheme();
-  renderNews();
-  renderGallery();
-  renderMovements();
   addEventListeners();
   showSection('home');
+  fetchContent(); // Dispara a busca no banco de dados assim que a página carrega
 }
 
 init();

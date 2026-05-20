@@ -1,157 +1,157 @@
 const express = require('express');
-const fs = require('fs');
+const mongoose = require('mongoose');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-function loadData() {
+// Conexão com o MongoDB Atlas usando a variável de ambiente do Render
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("Conectado ao MongoDB com sucesso!"))
+  .catch((erro) => console.error("Erro ao conectar ao MongoDB:", erro));
+
+// Moldes (Schemas) do Banco de Dados
+const NewsSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+  date: String
+});
+const News = mongoose.model('News', NewsSchema);
+
+const GallerySchema = new mongoose.Schema({
+  title: String,
+  image: String
+});
+const Gallery = mongoose.model('Gallery', GallerySchema);
+
+const MovementSchema = new mongoose.Schema({
+  name: String,
+  description: String
+});
+const Movement = mongoose.model('Movement', MovementSchema);
+
+// Rota Geral de Conteúdo (Agrupa tudo para o seu frontend carregar a página inicial)
+app.get('/api/content', async (req, res) => {
   try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(raw);
+    const news = await News.find();
+    const gallery = await Gallery.find();
+    const movements = await Movement.find();
+    res.json({ theme: {}, news, gallery, movements });
   } catch (error) {
-    console.error('Erro ao ler data.json:', error);
-    return {
-      theme: {},
-      news: [],
-      gallery: [],
-      movements: [],
-    };
+    res.status(500).json({ error: 'Erro ao buscar conteúdo geral.' });
   }
-}
-
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
-
-function getData() {
-  return loadData();
-}
-
-app.get('/api/content', (req, res) => {
-  res.json(getData());
 });
 
-app.get('/api/news', (req, res) => {
-  res.json(getData().news || []);
+// --- ROTAS DE NOTÍCIAS ---
+app.get('/api/news', async (req, res) => {
+  const news = await News.find();
+  res.json(news);
 });
 
-app.post('/api/news', (req, res) => {
-  const data = getData();
+app.post('/api/news', async (req, res) => {
   const item = req.body;
   if (!item.title || !item.content) {
     return res.status(400).json({ error: 'Título e conteúdo são obrigatórios.' });
   }
   item.date = new Date().toLocaleDateString('pt-BR');
-  data.news = data.news || [];
-  data.news.push(item);
-  saveData(data);
-  res.status(201).json(item);
+  const novaNoticia = new News(item);
+  await novaNoticia.save();
+  res.status(201).json(novaNoticia);
 });
 
-app.put('/api/news/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.news) || index < 0 || index >= data.news.length) {
-    return res.status(404).json({ error: 'Notícia não encontrada.' });
+app.put('/api/news/:id', async (req, res) => {
+  try {
+    const item = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item) return res.status(404).json({ error: 'Notícia não encontrada.' });
+    res.json(item);
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido ou erro ao atualizar.' });
   }
-  const item = { ...data.news[index], ...req.body };
-  data.news[index] = item;
-  saveData(data);
-  res.json(item);
 });
 
-app.delete('/api/news/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.news) || index < 0 || index >= data.news.length) {
-    return res.status(404).json({ error: 'Notícia não encontrada.' });
+app.delete('/api/news/:id', async (req, res) => {
+  try {
+    const item = await News.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Notícia não encontrada.' });
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido ou erro ao deletar.' });
   }
-  data.news.splice(index, 1);
-  saveData(data);
-  res.status(204).send();
 });
 
-app.get('/api/gallery', (req, res) => {
-  res.json(getData().gallery || []);
+// --- ROTAS DA GALERIA ---
+app.get('/api/gallery', async (req, res) => {
+  const gallery = await Gallery.find();
+  res.json(gallery);
 });
 
-app.post('/api/gallery', (req, res) => {
-  const data = getData();
+app.post('/api/gallery', async (req, res) => {
   const item = req.body;
   if (!item.title || !item.image) {
     return res.status(400).json({ error: 'Título e URL da imagem são obrigatórios.' });
   }
-  data.gallery = data.gallery || [];
-  data.gallery.push(item);
-  saveData(data);
-  res.status(201).json(item);
+  const novaFoto = new Gallery(item);
+  await novaFoto.save();
+  res.status(201).json(novaFoto);
 });
 
-app.put('/api/gallery/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.gallery) || index < 0 || index >= data.gallery.length) {
-    return res.status(404).json({ error: 'Foto não encontrada.' });
+app.put('/api/gallery/:id', async (req, res) => {
+  try {
+    const item = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item) return res.status(404).json({ error: 'Foto não encontrada.' });
+    res.json(item);
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido.' });
   }
-  const item = { ...data.gallery[index], ...req.body };
-  data.gallery[index] = item;
-  saveData(data);
-  res.json(item);
 });
 
-app.delete('/api/gallery/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.gallery) || index < 0 || index >= data.gallery.length) {
-    return res.status(404).json({ error: 'Foto não encontrada.' });
+app.delete('/api/gallery/:id', async (req, res) => {
+  try {
+    const item = await Gallery.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Foto não encontrada.' });
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido.' });
   }
-  data.gallery.splice(index, 1);
-  saveData(data);
-  res.status(204).send();
 });
 
-app.get('/api/movements', (req, res) => {
-  res.json(getData().movements || []);
+// --- ROTAS DE MOVIMENTOS ---
+app.get('/api/movements', async (req, res) => {
+  const movements = await Movement.find();
+  res.json(movements);
 });
 
-app.post('/api/movements', (req, res) => {
-  const data = getData();
+app.post('/api/movements', async (req, res) => {
   const item = req.body;
   if (!item.name || !item.description) {
     return res.status(400).json({ error: 'Nome e descrição são obrigatórios.' });
   }
-  data.movements = data.movements || [];
-  data.movements.push(item);
-  saveData(data);
-  res.status(201).json(item);
+  const novoMovimento = new Movement(item);
+  await novoMovimento.save();
+  res.status(201).json(novoMovimento);
 });
 
-app.put('/api/movements/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.movements) || index < 0 || index >= data.movements.length) {
-    return res.status(404).json({ error: 'Movimento não encontrado.' });
+app.put('/api/movements/:id', async (req, res) => {
+  try {
+    const item = await Movement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item) return res.status(404).json({ error: 'Movimento não encontrado.' });
+    res.json(item);
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido.' });
   }
-  const item = { ...data.movements[index], ...req.body };
-  data.movements[index] = item;
-  saveData(data);
-  res.json(item);
 });
 
-app.delete('/api/movements/:index', (req, res) => {
-  const data = getData();
-  const index = Number(req.params.index);
-  if (!Array.isArray(data.movements) || index < 0 || index >= data.movements.length) {
-    return res.status(404).json({ error: 'Movimento não encontrado.' });
+app.delete('/api/movements/:id', async (req, res) => {
+  try {
+    const item = await Movement.findByIdAndDelete(req.params.id);
+    if (!item) return res.status(404).json({ error: 'Movimento não encontrado.' });
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ error: 'ID inválido.' });
   }
-  data.movements.splice(index, 1);
-  saveData(data);
-  res.status(204).send();
 });
 
 app.listen(PORT, () => {
