@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// Rota amigável para abrir a tela de admin sem precisar digitar .html no navegador
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // Conexão com o MongoDB Atlas usando a variável de ambiente do Render
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("Conectado ao MongoDB com sucesso!"))
@@ -17,7 +22,8 @@ mongoose.connect(process.env.MONGO_URI)
 const NewsSchema = new mongoose.Schema({
   title: String,
   content: String,
-  date: String
+  date: String,
+  image: String // <-- Campo adicionado com sucesso para salvar as imagens das notícias
 });
 const News = mongoose.model('News', NewsSchema);
 
@@ -103,16 +109,6 @@ app.put('/api/gallery/:id', async (req, res) => {
     const item = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!item) return res.status(404).json({ error: 'Foto não encontrada.' });
     res.json(item);
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido.' });
-  }
-});
-
-app.delete('/api/gallery/:id', async (req, res) => {
-  try {
-    const item = await Gallery.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ error: 'Foto não encontrada.' });
-    res.status(204).send();
   } catch (error) {
     res.status(400).json({ error: 'ID inválido.' });
   }
