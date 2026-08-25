@@ -3,7 +3,7 @@ const ui = {
   pageSections: document.querySelectorAll('.page-section'),
   newsList: document.getElementById('news-list'),
   galleryList: document.getElementById('gallery-list'),
-  movementList: document.getElementById('movement-list'),
+  movementList: document.getElementById('movement-list'), // Alinhado com o index.html
 };
 
 const defaultState = {
@@ -15,29 +15,9 @@ const defaultState = {
     fontFamily: 'Inter, sans-serif',
     fontSize: 16,
   },
-  news: [
-    {
-      title: 'Inauguração do novo centro cultural',
-      content: 'Venha conhecer o espaço dedicado a exposições, música e residências artísticas na cidade.',
-      image: 'https://unsplash.com',
-      date: new Date().toLocaleDateString('pt-BR'),
-    },
-  ],
-  gallery: [
-    {
-      title: 'Arte de rua recente',
-      image: 'https://unsplash.com',
-      description: 'Um painel colorido que celebra a cultura local e a arte urbana.',
-    },
-  ],
-  movements: [
-    {
-      name: 'Coletivo Aurora',
-      category: 'Arte urbana',
-      image: '', 
-      description: 'Grupo de artistas que promove intervenções visuais e oficinas na cidade.',
-    },
-  ],
+  news: [],
+  gallery: [],
+  movements: [],
 };
 
 let state = { ...defaultState };
@@ -53,8 +33,9 @@ function applyTheme() {
 }
 
 function renderNews() {
+  if (!ui.newsList) return;
   ui.newsList.innerHTML = '';
-  if (!state.news.length) {
+  if (!state.news || !state.news.length) {
     ui.newsList.innerHTML = '<p>Sem notícias por enquanto.</p>';
     return;
   }
@@ -76,8 +57,9 @@ function renderNews() {
 }
 
 function renderGallery() {
+  if (!ui.galleryList) return;
   ui.galleryList.innerHTML = '';
-  if (!state.gallery.length) {
+  if (!state.gallery || !state.gallery.length) {
     ui.galleryList.innerHTML = '<p>Sem fotos por enquanto.</p>';
     return;
   }
@@ -95,10 +77,11 @@ function renderGallery() {
   });
 }
 
-// CORRIGIDO DEFINITIVO: Agora a renderização pública lê e desenha a imagem cadastrada no banco de dados pelo Admin
+// CORREÇÃO MÁXIMA: Garante a renderização da imagem e do texto cadastrados no banco
 function renderMovements() {
+  if (!ui.movementList) return;
   ui.movementList.innerHTML = '';
-  if (!state.movements.length) {
+  if (!state.movements || !state.movements.length) {
     ui.movementList.innerHTML = '<p>Sem movimentos cadastrados.</p>';
     return;
   }
