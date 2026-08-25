@@ -406,3 +406,71 @@ button:hover {
 .card div h3 {
   margin-bottom: 12px !important;
 }
+/* ===================================================
+   AJUSTE DE PROPORÇÃO VISUAL (ABAS NEWS E MOVEMENTS)
+   =================================================== */
+
+/* Garante que os cards tenham uma estrutura organizada */
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 20px;
+    background: #242424; /* Ou a cor de fundo do seu card */
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* Limita o tamanho do cartaz para não ficar gigante */
+.card img {
+    width: 100%;
+    max-width: 450px;     /* Impede que o cartaz ocupe a tela inteira */
+    height: auto;
+    max-height: 450px;    /* Limita a altura para cartazes verticais */
+    object-fit: contain;  /* Mantém a proporção da foto sem cortar nada */
+    border-radius: 6px;
+    margin: 0 auto;       /* Centraliza a imagem no card */
+    display: block;
+}
+
+/* Destaca o título da notícia/movimento */
+.card h3 {
+    font-size: 22px;      /* Aumenta o tamanho do título */
+    line-height: 1.3;
+    margin-top: 10px;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+/* Melhora a leitura do texto corrido (Descrição) */
+.card p {
+    font-size: 17px;      /* Aumenta levemente o texto para equilibrar com a foto */
+    line-height: 1.6;     /* Cria um espaço confortável entre as linhas */
+    color: #e0e0e0;       /* Deixa o texto claro para melhor contraste no fundo escuro */
+}
+
+/* Seção de categorias ou datas */
+.card small {
+    font-size: 14px;
+    color: var(--secondary);
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* RESPONSIVIDADE: No computador, coloca a imagem de um lado e o texto do outro */
+@media (min-width: 768px) {
+    .card {
+        flex-direction: row; /* Coloca foto e texto lado a lado */
+        align-items: flex-start;
+    }
+    
+    .card img {
+        width: 35%;          /* Foto ocupa 35% do espaço do card */
+        margin: 0;           /* Alinha a foto à esquerda */
+    }
+    
+    .card > div {
+        width: 65%;          /* Texto ocupa o restante do espaço */
+        padding-left: 10px;
+    }
+}
