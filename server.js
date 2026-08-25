@@ -8,40 +8,40 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// Rota amigável para abrir a tela de admin sem precisar digitar .html no navegador
+// Rota amigável para abrir a tela de admin
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Conexão com o MongoDB Atlas usando a variável de ambiente do Render
-mongoose.connect(process.env.MONGO_URI)
+// BANCO DE DADOS LOCAL EM MEMÓRIA (FALLBACK SE O MONGO LOCAL FALHAR)
+let usarBancoLocal = false;
+let memoriaLocal = { news: [], gallery: [], movements: [] };
+
+const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/portal-da-arte";
+
+mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 2000 })
   .then(() => console.log("Conectado ao MongoDB com sucesso!"))
-  .catch((erro) => console.error("Erro ao conectar ao MongoDB:", erro));
+  .catch((erro) => {
+    console.log("⚠️ MongoDB local offline ou não instalado. Ativando modo local em memória para testes.");
+    usarBancoLocal = true;
+  });
 
 // Moldes (Schemas) do Banco de Dados
-const NewsSchema = new mongoose.Schema({
-  title: String,
-  content: String,
-  date: String,
-  image: String // <-- Campo adicionado com sucesso para salvar as imagens das notícias
-});
+const NewsSchema = new mongoose.Schema({ title: String, content: String, date: String, image: String });
 const News = mongoose.model('News', NewsSchema);
 
-const GallerySchema = new mongoose.Schema({
-  title: String,
-  image: String
-});
+const GallerySchema = new mongoose.Schema({ title: String, image: String });
 const Gallery = mongoose.model('Gallery', GallerySchema);
 
-const MovementSchema = new mongoose.Schema({
-  name: String,
-  description: String
-});
+const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
 const Movement = mongoose.model('Movement', MovementSchema);
 
 // Rota Geral de Conteúdo (Agrupa tudo para o seu frontend carregar a página inicial)
 app.get('/api/content', async (req, res) => {
   try {
+    if (usarBancoLocal) {
+      return res.json({ theme: {}, ...memoriaLocal });
+    }
     const news = await News.find();
     const gallery = await Gallery.find();
     const movements = await Movement.find();
@@ -53,51 +53,58 @@ app.get('/api/content', async (req, res) => {
 
 // --- ROTAS DE NOTÍCIAS ---
 app.get('/api/news', async (req, res) => {
+  if (usarBancoLocal) return res.json(memoriaLocal.news);
   const news = await News.find();
   res.json(news);
 });
 
 app.post('/api/news', async (req, res) => {
   const item = req.body;
-  if (!item.title || !item.content) {
-    return res.status(400).json({ error: 'Título e conteúdo são obrigatórios.' });
-  }
+  if (!item.title || !item.content) return res.status(400).json({ error: 'Campos obrigatórios.' });
   item.date = new Date().toLocaleDateString('pt-BR');
+  
+  if (usarBancoLocal) {
+    item._id = 'local_' + Date.now();
+    memoriaLocal.news.push(item);
+    return res.status(201).json(item);
+  }
   const novaNoticia = new News(item);
   await novaNoticia.save();
   res.status(201).json(novaNoticia);
 });
 
 app.put('/api/news/:id', async (req, res) => {
-  try {
-    const item = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!item) return res.status(404).json({ error: 'Notícia não encontrada.' });
-    res.json(item);
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido ou erro ao atualizar.' });
+  if (usarBancoLocal) {
+    const idx = memoriaLocal.news.findIndex(n => n._id === req.params.id);
+    if (idx !== -1) memoriaLocal.news[idx] = { ...memoriaLocal.news[idx], ...req.body };
+    return res.json(memoriaLocal.news[idx]);
   }
+  const item = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(item);
 });
 
 app.delete('/api/news/:id', async (req, res) => {
-  try {
-    const item = await News.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ error: 'Notícia não encontrada.' });
-    res.status(204).send();
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido ou erro ao deletar.' });
+  if (usarBancoLocal) {
+    memoriaLocal.news = memoriaLocal.news.filter(n => n._id !== req.params.id);
+    return res.status(204).send();
   }
+  await News.findByIdAndDelete(req.params.id);
+  res.status(204).send();
 });
 
 // --- ROTAS DA GALERIA ---
 app.get('/api/gallery', async (req, res) => {
+  if (usarBancoLocal) return res.json(memoriaLocal.gallery);
   const gallery = await Gallery.find();
   res.json(gallery);
 });
 
 app.post('/api/gallery', async (req, res) => {
   const item = req.body;
-  if (!item.title || !item.image) {
-    return res.status(400).json({ error: 'Título e URL da imagem são obrigatórios.' });
+  if (usarBancoLocal) {
+    item._id = 'local_' + Date.now();
+    memoriaLocal.gallery.push(item);
+    return res.status(201).json(item);
   }
   const novaFoto = new Gallery(item);
   await novaFoto.save();
@@ -105,25 +112,30 @@ app.post('/api/gallery', async (req, res) => {
 });
 
 app.put('/api/gallery/:id', async (req, res) => {
-  try {
-    const item = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!item) return res.status(404).json({ error: 'Foto não encontrada.' });
-    res.json(item);
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido.' });
+  if (usarBancoLocal) {
+    const idx = memoriaLocal.gallery.findIndex(g => g._id === req.params.id);
+    if (idx !== -1) memoriaLocal.gallery[idx] = { ...memoriaLocal.gallery[idx], ...req.body };
+    return res.json(memoriaLocal.gallery[idx]);
   }
+  const item = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(item);
 });
 
 // --- ROTAS DE MOVIMENTOS ---
 app.get('/api/movements', async (req, res) => {
+  if (usarBancoLocal) return res.json(memoriaLocal.movements);
   const movements = await Movement.find();
   res.json(movements);
 });
 
 app.post('/api/movements', async (req, res) => {
   const item = req.body;
-  if (!item.name || !item.description) {
-    return res.status(400).json({ error: 'Nome e descrição são obrigatórios.' });
+  if (!item.name || !item.description) return res.status(400).json({ error: 'Campos obrigatórios.' });
+  
+  if (usarBancoLocal) {
+    item._id = 'local_' + Date.now();
+    memoriaLocal.movements.push(item);
+    return res.status(201).json(item);
   }
   const novoMovimento = new Movement(item);
   await novoMovimento.save();
@@ -131,23 +143,22 @@ app.post('/api/movements', async (req, res) => {
 });
 
 app.put('/api/movements/:id', async (req, res) => {
-  try {
-    const item = await Movement.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!item) return res.status(404).json({ error: 'Movimento não encontrado.' });
-    res.json(item);
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido.' });
+  if (usarBancoLocal) {
+    const idx = memoriaLocal.movements.findIndex(m => m._id === req.params.id);
+    if (idx !== -1) memoriaLocal.movements[idx] = { ...memoriaLocal.movements[idx], ...req.body };
+    return res.json(memoriaLocal.movements[idx]);
   }
+  const item = await Movement.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(item);
 });
 
 app.delete('/api/movements/:id', async (req, res) => {
-  try {
-    const item = await Movement.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ error: 'Movimento não encontrado.' });
-    res.status(204).send();
-  } catch (error) {
-    res.status(400).json({ error: 'ID inválido.' });
+  if (usarBancoLocal) {
+    memoriaLocal.movements = memoriaLocal.movements.filter(m => m._id !== req.params.id);
+    return res.status(204).send();
   }
+  await Movement.findByIdAndDelete(req.params.id);
+  res.status(204).send();
 });
 
 app.listen(PORT, () => {

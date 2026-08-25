@@ -56,8 +56,9 @@ function applyTheme() {
 }
 
 function renderList(listElement, items, type) {
+  if (!listElement) return;
   listElement.innerHTML = '';
-  if (!items.length) {
+  if (!items || !items.length) {
     listElement.innerHTML = `<p>Sem ${type} por enquanto. Adicione o primeiro!</p>`;
     return;
   }
@@ -102,6 +103,7 @@ function renderList(listElement, items, type) {
 
     if (type === 'movimentos') {
       card.innerHTML = `
+        ${item.image ? `<img src="${item.image}" alt="${item.name}" />` : ''}
         <div>
           <h3>${item.name}</h3>
           <small>${item.category || 'Sem categoria'}</small>
@@ -137,6 +139,7 @@ function showAdminSection(sectionId) {
 }
 
 function toggleForm(formCard, visible) {
+  if (!formCard) return;
   if (visible) {
     formCard.classList.remove('hidden');
   } else {
@@ -156,9 +159,13 @@ function resetForms() {
   ui.movementFormTitle.textContent = 'Novo movimento';
 }
 
+const getApiUrl = (endpoint) => {
+  return endpoint;
+};
+
 async function fetchContent() {
   try {
-    const response = await fetch('/api/content');
+    const response = await fetch(getApiUrl('/api/content'));
     if (!response.ok) throw new Error('Resposta inválida do servidor');
     const parsed = await response.json();
     state = {
@@ -169,12 +176,11 @@ async function fetchContent() {
     };
   } catch (error) {
     console.error(error);
-    ui.newsList.innerHTML = '<p>Não foi possível carregar os dados do servidor.</p>';
   }
 }
 
 async function postData(url, data) {
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -183,11 +189,13 @@ async function postData(url, data) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao salvar.');
   }
+  // Tratamento seguro para respostas HTTP 204 (No Content)
+  if (response.status === 204) return {};
   return response.json();
 }
 
 async function putData(url, data) {
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -196,11 +204,12 @@ async function putData(url, data) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao atualizar.');
   }
+  if (response.status === 204) return {};
   return response.json();
 }
 
 async function deleteData(url) {
-  const response = await fetch(url, { method: 'DELETE' });
+  const response = await fetch(getApiUrl(url), { method: 'DELETE' });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao excluir.');
@@ -234,26 +243,26 @@ function addEventListeners() {
   ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));
   ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));
 
+  // ROTAS CORRIGIDAS PARA BATER COM O SEU SERVER.JS ORIGINAL
   ui.newsForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const title = document.getElementById('news-title').value.trim();
     const content = document.getElementById('news-content').value.trim();
     const image = document.getElementById('news-image').value.trim();
     const index = ui.newsIndex.value;
-    const item = { title, content, image };
 
     try {
-      if (index) {
-        await putData(`/api/news/${index}`, item);
+      if (index === '') {
+        await postData('/api/news', { title, content, image });
       } else {
-        await postData('/api/news', item);
+        await putData(`/api/news/${index}`, { title, content, image });
       }
       await fetchContent();
       renderAdminLists();
-      resetForms();
       toggleForm(ui.newsFormCard, false);
-    } catch (error) {
-      alert(error.message);
+      resetForms();
+    } catch (err) {
+      alert(err.message);
     }
   });
 
@@ -263,124 +272,23 @@ function addEventListeners() {
     const image = document.getElementById('gallery-image').value.trim();
     const description = document.getElementById('gallery-description').value.trim();
     const index = ui.galleryIndex.value;
-    const item = { title, image, description };
 
     try {
-      if (index) {
-        await putData(`/api/gallery/${index}`, item);
+      if (index === '') {
+        await postData('/api/gallery', { title, image, description });
       } else {
-        await postData('/api/gallery', item);
+        await putData(`/api/gallery/${index}`, { title, image, description });
       }
       await fetchContent();
       renderAdminLists();
-      resetForms();
       toggleForm(ui.galleryFormCard, false);
-    } catch (error) {
-      alert(error.message);
+      resetForms();
+    } catch (err) {
+      alert(err.message);
     }
   });
 
   ui.movementForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const name = document.getElementById('movement-name').value.trim();
-    const category = document.getElementById('movement-category').value.trim();
-    const description = document.getElementById('movement-description').value.trim();
-    const index = ui.movementIndex.value;
-    const item = { name, category, description };
-
-    try {
-      if (index) {
-        await putData(`/api/movements/${index}`, item);
-      } else {
-        await postData('/api/movements', item);
-      }
-      await fetchContent();
-      renderAdminLists();
-      resetForms();
-      toggleForm(ui.movementFormCard, false);
-    } catch (error) {
-      alert(error.message);
-    }
-  });
-
-  document.addEventListener('click', async (event) => {
-    const action = event.target.dataset.action;
-    if (!action) return;
-    const index = Number(event.target.dataset.index);
-
-    if (action === 'edit-news') {
-      const item = state.news[index];
-      ui.newsFormTitle.textContent = 'Editar notícia';
-      ui.newsIndex.value = index;
-      document.getElementById('news-title').value = item.title;
-      document.getElementById('news-content').value = item.content;
-      document.getElementById('news-image').value = item.image;
-      toggleForm(ui.newsFormCard, true);
-      return;
-    }
-
-    if (action === 'edit-gallery') {
-      const item = state.gallery[index];
-      ui.galleryFormTitle.textContent = 'Editar foto';
-      ui.galleryIndex.value = index;
-      document.getElementById('gallery-title').value = item.title;
-      document.getElementById('gallery-image').value = item.image;
-      document.getElementById('gallery-description').value = item.description;
-      toggleForm(ui.galleryFormCard, true);
-      return;
-    }
-
-    if (action === 'edit-movement') {
-      const item = state.movements[index];
-      ui.movementFormTitle.textContent = 'Editar movimento';
-      ui.movementIndex.value = index;
-      document.getElementById('movement-name').value = item.name;
-      document.getElementById('movement-category').value = item.category;
-      document.getElementById('movement-description').value = item.description;
-      toggleForm(ui.movementFormCard, true);
-      return;
-    }
-
-    try {
-      if (action === 'remove-news') {
-        await deleteData(`/api/news/${index}`);
-      }
-      if (action === 'remove-gallery') {
-        await deleteData(`/api/gallery/${index}`);
-      }
-      if (action === 'remove-movement') {
-        await deleteData(`/api/movements/${index}`);
-      }
-      await fetchContent();
-      renderAdminLists();
-    } catch (error) {
-      alert(error.message);
-    }
-  });
-
-  ui.loginForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const password = ui.loginPassword.value.trim();
-    if (password !== ADMIN_PASSWORD) {
-      alert('Senha incorreta.');
-      return;
-    }
-    isAuthenticated = true;
-    ui.loginPassword.value = '';
-    await fetchContent();
-    renderAdminLists();
-    showAdminSection('dashboard');
-    toggleForm(ui.loginForm.parentElement, false);
-    document.getElementById('admin-login').classList.add('hidden');
-    document.querySelectorAll('.admin-section').forEach((section) => section.classList.remove('hidden'));
-  });
-}
-
-function init() {
-  applyTheme();
-  addEventListeners();
-  document.getElementById('admin-login').classList.remove('hidden');
-  document.querySelectorAll('.admin-section').forEach((section) => section.classList.add('hidden'));
-}
-
-init();
+    const category = document.getElementById('movement-category').value.trim();const image = document.getElementById('movement-image').value.trim();const description = document.getElementById('movement-description').value.trim();const index = ui.movementIndex.value;try {if (index === '') {await postData('/api/movements', { name, category, image, description });} else {await putData(/api/movements/${index}, { name, category, image, description });}await fetchContent();renderAdminLists();toggleForm(ui.movementFormCard, false);resetForms();} catch (err) {alert(err.message);}});document.addEventListener('click', async (event) => {const action = event.target.dataset.action;const index = event.target.dataset.index;if (!action || index === undefined) return;try {if (action === 'remove-news' && confirm('Excluir esta notícia?')) {await deleteData(/api/news/${index});await fetchContent();renderAdminLists();}if (action === 'remove-gallery' && confirm('Excluir esta foto?')) {await deleteData(/api/gallery/${index});await fetchContent();renderAdminLists();}if (action === 'remove-movement' && confirm('Excluir este movimento?')) {await deleteData(/api/movements/${index});await fetchContent();renderAdminLists();}if (action === 'edit-news') {const item = state.news[index];document.getElementById('news-title').value = item.title;document.getElementById('news-content').value = item.content;document.getElementById('news-image').value = item.image || '';ui.newsIndex.value = index;ui.newsFormTitle.textContent = 'Editar notícia';toggleForm(ui.newsFormCard, true);}if (action === 'edit-gallery') {const item = state.gallery[index];document.getElementById('gallery-title').value = item.title;document.getElementById('gallery-image').value = item.image;document.getElementById('gallery-description').value = item.description || '';ui.galleryIndex.value = index;ui.galleryFormTitle.textContent = 'Editar foto';toggleForm(ui.galleryFormCard, true);}if (action === 'edit-movement') {const item = state.movements[index];document.getElementById('movement-name').value = item.name;document.getElementById('movement-category').value = item.category || '';document.getElementById('movement-image').value = item.image || '';document.getElementById('movement-description').value = item.description;ui.movementIndex.value = index;ui.movementFormTitle.textContent = 'Editar movimento';toggleForm(ui.movementFormCard, true);}} catch (err) {alert(err.message);}});ui.loginForm.addEventListener('submit', (event) => {event.preventDefault();if (ui.loginPassword.value === ADMIN_PASSWORD) {isAuthenticated = true;document.getElementById('admin-login').classList.add('hidden');showAdminSection('dashboard');renderAdminLists();} else {alert('Senha incorreta!');}});}async function init() {addEventListeners();applyTheme();const loginSection = document.getElementById('admin-login');if (loginSection) {showAdminSection('admin-login');} else {await fetchContent();renderAdminLists();showAdminSection('dashboard');}}init();
