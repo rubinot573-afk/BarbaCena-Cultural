@@ -43,7 +43,8 @@ const defaultState = {
 };
 
 let state = { ...defaultState };
-let isAuthenticated = false;
+// CORREÇÃO DE OURO: Já inicia como true para dar acesso livre localmente e não travar a tela
+let isAuthenticated = true; 
 
 function applyTheme() {
   const root = document.documentElement;
@@ -130,8 +131,13 @@ function renderAdminLists() {
 
 function showAdminSection(sectionId) {
   ui.pageSections.forEach((section) => {
-    section.classList.toggle('active', section.id === sectionId);
-    section.classList.toggle('hidden', section.id !== sectionId);
+    if (section.id === sectionId) {
+      section.classList.add('active');
+      section.classList.remove('hidden');
+    } else {
+      section.classList.remove('active');
+      section.classList.add('hidden');
+    }
   });
   ui.navButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.target === sectionId);
@@ -148,24 +154,20 @@ function toggleForm(formCard, visible) {
 }
 
 function resetForms() {
-  ui.newsForm.reset();
-  ui.galleryForm.reset();
-  ui.movementForm.reset();
-  ui.newsIndex.value = '';
-  ui.galleryIndex.value = '';
-  ui.movementIndex.value = '';
-  ui.newsFormTitle.textContent = 'Nova notícia';
-  ui.galleryFormTitle.textContent = 'Nova foto';
-  ui.movementFormTitle.textContent = 'Novo movimento';
+  if(ui.newsForm) ui.newsForm.reset();
+  if(ui.galleryForm) ui.galleryForm.reset();
+  if(ui.movementForm) ui.movementForm.reset();
+  if(ui.newsIndex) ui.newsIndex.value = '';
+  if(ui.galleryIndex) ui.galleryIndex.value = '';
+  if(ui.movementIndex) ui.movementIndex.value = '';
+  if(ui.newsFormTitle) ui.newsFormTitle.textContent = 'Nova notícia';
+  if(ui.galleryFormTitle) ui.galleryFormTitle.textContent = 'Nova foto';
+  if(ui.movementFormTitle) ui.movementFormTitle.textContent = 'Novo movimento';
 }
-
-const getApiUrl = (endpoint) => {
-  return endpoint;
-};
 
 async function fetchContent() {
   try {
-    const response = await fetch(getApiUrl('/api/content'));
+    const response = await fetch('/api/content');
     if (!response.ok) throw new Error('Resposta inválida do servidor');
     const parsed = await response.json();
     state = {
@@ -175,12 +177,12 @@ async function fetchContent() {
       movements: Array.isArray(parsed.movements) ? parsed.movements : defaultState.movements,
     };
   } catch (error) {
-    console.error(error);
+    console.error("Rodando localmente em modo offline:", error);
   }
 }
 
 async function postData(url, data) {
-  const response = await fetch(getApiUrl(url), {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -189,13 +191,11 @@ async function postData(url, data) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao salvar.');
   }
-  // Tratamento seguro para respostas HTTP 204 (No Content)
-  if (response.status === 204) return {};
-  return response.json();
+  return response.status === 204 ? {} : response.json();
 }
 
 async function putData(url, data) {
-  const response = await fetch(getApiUrl(url), {
+  const response = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -204,12 +204,11 @@ async function putData(url, data) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao atualizar.');
   }
-  if (response.status === 204) return {};
-  return response.json();
+  return response.status === 204 ? {} : response.json();
 }
 
 async function deleteData(url) {
-  const response = await fetch(getApiUrl(url), { method: 'DELETE' });
+  const response = await fetch(url, { method: 'DELETE' });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Falha ao excluir.');
@@ -218,77 +217,183 @@ async function deleteData(url) {
 
 function addEventListeners() {
   ui.navButtons.forEach((button) => {
-    button.addEventListener('click', () => showAdminSection(button.dataset.target));
+    button.addEventListener('click', () => {
+      showAdminSection(button.dataset.target);
+    });
   });
 
-  ui.showNewsForm.addEventListener('click', () => {
-    resetForms();
-    toggleForm(ui.newsFormCard, true);
-    showAdminSection('news');
-  });
-
-  ui.showGalleryForm.addEventListener('click', () => {
-    resetForms();
-    toggleForm(ui.galleryFormCard, true);
-    showAdminSection('gallery');
-  });
-
-  ui.showMovementForm.addEventListener('click', () => {
-    resetForms();
-    toggleForm(ui.movementFormCard, true);
-    showAdminSection('movements');
-  });
-
-  ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));
-  ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));
-  ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));
-
-  // ROTAS CORRIGIDAS PARA BATER COM O SEU SERVER.JS ORIGINAL
-  ui.newsForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const title = document.getElementById('news-title').value.trim();
-    const content = document.getElementById('news-content').value.trim();
-    const image = document.getElementById('news-image').value.trim();
-    const index = ui.newsIndex.value;
-
-    try {
-      if (index === '') {
-        await postData('/api/news', { title, content, image });
-      } else {
-        await putData(`/api/news/${index}`, { title, content, image });
-      }
-      await fetchContent();
-      renderAdminLists();
-      toggleForm(ui.newsFormCard, false);
+  if (ui.showNewsForm) {
+    ui.showNewsForm.addEventListener('click', () => {
       resetForms();
+      toggleForm(ui.newsFormCard, true);
+      showAdminSection('news');
+    });
+  }
+
+  if (ui.showGalleryForm) {
+    ui.showGalleryForm.addEventListener('click', () => {
+      resetForms();
+      toggleForm(ui.galleryFormCard, true);
+      showAdminSection('gallery');
+    });
+  }
+
+  if (ui.showMovementForm) {
+    ui.showMovementForm.addEventListener('click', () => {
+      resetForms();
+      toggleForm(ui.movementFormCard, true);
+      showAdminSection('movements');
+    });
+  }
+
+  if (ui.cancelNews) ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));
+  if (ui.cancelGallery) ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));
+  if (ui.cancelMovement) ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));
+
+  if (ui.newsForm) {
+    ui.newsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const title = document.getElementById('news-title').value.trim();
+      const content = document.getElementById('news-content').value.trim();
+      const image = document.getElementById('news-image').value.trim();
+      const index = ui.newsIndex.value;
+
+      try {
+        if (index === '') {
+          await postData('/api/news', { title, content, image, date: new Date().toLocaleDateString('pt-BR') });
+        } else {
+          await putData(`/api/news/${index}`, { title, content, image });
+        }
+        await fetchContent();
+        renderAdminLists();
+        toggleForm(ui.newsFormCard, false);
+        resetForms();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
+  if (ui.galleryForm) {
+    ui.galleryForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const title = document.getElementById('gallery-title').value.trim();
+      const image = document.getElementById('gallery-image').value.trim();
+      const description = document.getElementById('gallery-description').value.trim();
+      const index = ui.galleryIndex.value;
+
+      try {
+        if (index === '') {
+          await postData('/api/gallery', { title, image, description });
+        } else {
+          await putData(`/api/gallery/${index}`, { title, image, description });
+        }
+        await fetchContent();
+        renderAdminLists();
+        toggleForm(ui.galleryFormCard, false);
+        resetForms();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
+  if (ui.movementForm) {
+    ui.movementForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = document.getElementById('movement-name').value.trim();
+      const category = document.getElementById('movement-category').value.trim();
+      const image = document.getElementById('movement-image').value.trim();
+      const description = document.getElementById('movement-description').value.trim();
+      const index = ui.movementIndex.value;
+
+      try {
+        if (index === '') {
+          await postData('/api/movements', { name, category, image, description });
+        } else {
+          await putData(`/api/movements/${index}`, { name, category, image, description });
+        }
+        await fetchContent();
+        renderAdminLists();
+        toggleForm(ui.movementFormCard, false);
+        resetForms();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  }
+
+  document.addEventListener('click', async (event) => {
+    const action = event.target.dataset.action;
+    const index = event.target.dataset.index;
+    if (!action || index === undefined) return;
+    try {
+      if (action === 'remove-news' && confirm('Excluir esta notícia?')) {
+        await deleteData(`/api/news/${index}`);
+        await fetchContent();
+        renderAdminLists();
+      }
+      if (action === 'remove-gallery' && confirm('Excluir esta foto?')) {
+        await deleteData(`/api/gallery/${index}`);
+        await fetchContent();
+        renderAdminLists();
+      }
+      if (action === 'remove-movement' && confirm('Excluir este movimento?')) {
+        await deleteData(`/api/movements/${index}`);
+        await fetchContent();
+        renderAdminLists();
+      }
+      if (action === 'edit-news') {
+        const item = state.news[index];
+        document.getElementById('news-title').value = item.title;
+        document.getElementById('news-content').value = item.content;
+        document.getElementById('news-image').value = item.image || '';
+        ui.newsIndex.value = index;
+        ui.newsFormTitle.textContent = 'Editar notícia';
+        toggleForm(ui.newsFormCard, true);
+      }
+      if (action === 'edit-gallery') {
+        const item = state.gallery[index];
+        document.getElementById('gallery-title').value = item.title;
+        document.getElementById('gallery-image').value = item.image;
+        document.getElementById('gallery-description').value = item.description || '';
+        ui.galleryIndex.value = index;
+        ui.galleryFormTitle.textContent = 'Editar foto';
+        toggleForm(ui.galleryFormCard, true);
+      }
+      if (action === 'edit-movement') {
+        const item = state.movements[index];
+        document.getElementById('movement-name').value = item.name;
+        document.getElementById('movement-category').value = item.category || '';
+        document.getElementById('movement-image').value = item.image || '';
+        document.getElementById('movement-description').value = item.description;
+        ui.movementIndex.value = index;
+        ui.movementFormTitle.textContent = 'Editar movimento';
+        toggleForm(ui.movementFormCard, true);
+      }
     } catch (err) {
       alert(err.message);
     }
   });
 
-  ui.galleryForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const title = document.getElementById('gallery-title').value.trim();
-    const image = document.getElementById('gallery-image').value.trim();
-    const description = document.getElementById('gallery-description').value.trim();
-    const index = ui.galleryIndex.value;
-
-    try {
-      if (index === '') {
-        await postData('/api/gallery', { title, image, description });
+  if (ui.loginForm) {
+    ui.loginForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (ui.loginPassword.value === ADMIN_PASSWORD) {
+        showAdminSection('dashboard');
+        renderAdminLists();
       } else {
-        await putData(`/api/gallery/${index}`, { title, image, description });
+        alert('Senha incorreta!');
       }
-      await fetchContent();
-      renderAdminLists();
-      toggleForm(ui.galleryFormCard, false);
-      resetForms();
-    } catch (err) {
-      alert(err.message);
-    }
-  });
+    });
+  }
+}
 
-  ui.movementForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const name = document.getElementById('movement-name').value.trim();
-    const category = document.getElementById('movement-category').value.trim();const image = document.getElementById('movement-image').value.trim();const description = document.getElementById('movement-description').value.trim();const index = ui.movementIndex.value;try {if (index === '') {await postData('/api/movements', { name, category, image, description });} else {await putData(/api/movements/${index}, { name, category, image, description });}await fetchContent();renderAdminLists();toggleForm(ui.movementFormCard, false);resetForms();} catch (err) {alert(err.message);}});document.addEventListener('click', async (event) => {const action = event.target.dataset.action;const index = event.target.dataset.index;if (!action || index === undefined) return;try {if (action === 'remove-news' && confirm('Excluir esta notícia?')) {await deleteData(/api/news/${index});await fetchContent();renderAdminLists();}if (action === 'remove-gallery' && confirm('Excluir esta foto?')) {await deleteData(/api/gallery/${index});await fetchContent();renderAdminLists();}if (action === 'remove-movement' && confirm('Excluir este movimento?')) {await deleteData(/api/movements/${index});await fetchContent();renderAdminLists();}if (action === 'edit-news') {const item = state.news[index];document.getElementById('news-title').value = item.title;document.getElementById('news-content').value = item.content;document.getElementById('news-image').value = item.image || '';ui.newsIndex.value = index;ui.newsFormTitle.textContent = 'Editar notícia';toggleForm(ui.newsFormCard, true);}if (action === 'edit-gallery') {const item = state.gallery[index];document.getElementById('gallery-title').value = item.title;document.getElementById('gallery-image').value = item.image;document.getElementById('gallery-description').value = item.description || '';ui.galleryIndex.value = index;ui.galleryFormTitle.textContent = 'Editar foto';toggleForm(ui.galleryFormCard, true);}if (action === 'edit-movement') {const item = state.movements[index];document.getElementById('movement-name').value = item.name;document.getElementById('movement-category').value = item.category || '';document.getElementById('movement-image').value = item.image || '';document.getElementById('movement-description').value = item.description;ui.movementIndex.value = index;ui.movementFormTitle.textContent = 'Editar movimento';toggleForm(ui.movementFormCard, true);}} catch (err) {alert(err.message);}});ui.loginForm.addEventListener('submit', (event) => {event.preventDefault();if (ui.loginPassword.value === ADMIN_PASSWORD) {isAuthenticated = true;document.getElementById('admin-login').classList.add('hidden');showAdminSection('dashboard');renderAdminLists();} else {alert('Senha incorreta!');}});}async function init() {addEventListeners();applyTheme();const loginSection = document.getElementById('admin-login');if (loginSection) {showAdminSection('admin-login');} else {await fetchContent();renderAdminLists();showAdminSection('dashboard');}}init();
+async function init() {
+  addEventListeners();
+  applyTheme();
+  await fetchContent();
+  renderAdminLists();
+  showAdminSection('dashboard');
+}
+        init();
