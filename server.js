@@ -36,11 +36,16 @@ const Gallery = mongoose.model('Gallery', GallerySchema);
 const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
 const Movement = mongoose.model('Movement', MovementSchema);
 
-// Rota Geral de Conteúdo (Agrupa tudo para o seu frontend carregar a página inicial)
+// CORREÇÃO: Estruturação correta do objeto JSON para o front público carregar os dados locais
 app.get('/api/content', async (req, res) => {
   try {
     if (usarBancoLocal) {
-      return res.json({ theme: {}, ...memoriaLocal });
+      return res.json({ 
+        theme: {}, 
+        news: memoriaLocal.news, 
+        gallery: memoriaLocal.gallery, 
+        movements: memoriaLocal.movements 
+      });
     }
     const news = await News.find();
     const gallery = await Gallery.find();
