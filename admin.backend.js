@@ -146,9 +146,13 @@ function resetForms() {
   if (ui.movementFormTitle) ui.movementFormTitle.textContent = 'Novo movimento';
 }
 
+// ✅ CORRIGIDO: Agora busca o conteúdo geral enviando a senha do link para evitar erro 401
 async function fetchContent() {
   try {
-    const response = await fetch('/api/content');
+    const urlParams = new URLSearchParams(window.location.search);
+    const senha = urlParams.get('senha') || '';
+
+    const response = await fetch(`/api/content?senha=${senha}`);
     if (!response.ok) throw new Error('Resposta inválida do servidor');
     const parsed = await response.json();
     state = {
@@ -163,7 +167,7 @@ async function fetchContent() {
   }
 }
 
-// 🖼️ FUNÇÃO DE ENVIO EXCLUSIVA PARA NOTÍCIAS (LEVA A SENHA PELA URL)
+// 🖼️ FUNÇÃO DE ENVIO EXCLUSIVA PARA NOTÍCIAS (SUPORTA IMAGENS NO CLOUDINARY)
 async function enviarNoticiaComArquivo(formData, isEdit, id = '') {
   const urlParams = new URLSearchParams(window.location.search);
   const senha = urlParams.get('senha') || '';
@@ -184,7 +188,10 @@ async function enviarNoticiaComArquivo(formData, isEdit, id = '') {
 }
 
 async function postData(url, data) {
-  const response = await fetch(url, {
+  const urlParams = new URLSearchParams(window.location.search);
+  const senha = urlParams.get('senha') || '';
+  
+  const response = await fetch(`${url}?senha=${senha}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -205,7 +212,6 @@ async function deleteData(url) {
 }
 
 function setupFormSubmissions() {
-  // FORMULÁRIO DE NOTÍCIAS (SUPORTA IMAGENS NO CLOUDINARY)
   if (ui.newsForm) {
     ui.newsForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -219,7 +225,6 @@ function setupFormSubmissions() {
       formData.append('title', title);
       formData.append('content', content);
       
-      // ✅ CORREÇÃO AQUI: Garante que está pegando o primeiro arquivo selecionado [0]
       if (fileInput && fileInput.files && fileInput.files[0]) {
         formData.append('imageFile', fileInput.files[0]);
       }
@@ -239,7 +244,6 @@ function setupFormSubmissions() {
     });
   }
 
-  // FORMULÁRIO DA GALERIA
   if (ui.galleryForm) {
     ui.galleryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -259,7 +263,6 @@ function setupFormSubmissions() {
     });
   }
 
-  // FORMULÁRIO DE MOVIMENTOS
   if (ui.movementForm) {
     ui.movementForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -282,10 +285,7 @@ function setupFormSubmissions() {
 }
 
 function setupListActions() {
-  // AÇÃO DE EXCLUSÃO DE NOTÍCIAS ENVIANDO A SENHA DO LINK
   if (ui.newsList) {
     ui.newsList.addEventListener('click', async (e) => {
       const action = e.target.dataset.action;
-      const index = e.target.dataset.index;
-      if (!action || !index || !state.news[index]) return;
-      if (action === 'remove-news') {if (confirm('Tem certeza de que deseja excluir esta notícia permanentemente?')) {try {const urlParams = new URLSearchParams(window.location.search);const senha = urlParams.get('senha') || '';await deleteData(`/api/news/${state.news[index]._id}?senha=${senha}`);alert('Notícia excluída com sucesso!');await fetchContent();} catch (error) {alert(error.message);}}}});}}function addEventListeners() {ui.navButtons.forEach((button) => {button.addEventListener('click', () => showAdminSection(button.dataset.target));});if (ui.showNewsForm) {ui.showNewsForm.addEventListener('click', () => {resetForms();toggleForm(ui.newsFormCard, true);});}if (ui.cancelNews) ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));if (ui.showGalleryForm) {ui.showGalleryForm.addEventListener('click', () => {resetForms();toggleForm(ui.galleryFormCard, true);});}if (ui.cancelGallery) ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));if (ui.showMovementForm) {ui.showMovementForm.addEventListener('click', () => {resetForms();toggleForm(ui.movementFormCard, true);});}if (ui.cancelMovement) ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));}function init() {addEventListeners();setupFormSubmissions();setupListActions();showAdminSection('dashboard');fetchContent();}init();
+      const index = e.target.dataset.index;if (!action || !index || !state.news[index]) return;if (action === 'remove-news') {if (confirm('Tem certeza de que deseja excluir esta notícia permanentemente?')) {try {const urlParams = new URLSearchParams(window.location.search);const senha = urlParams.get('senha') || '';await deleteData(/api/news/${state.news[index]._id}?senha=${senha});alert('Notícia excluída com sucesso!');await fetchContent();} catch (error) {alert(error.message);}}}});}}function addEventListeners() {ui.navButtons.forEach((button) => {button.addEventListener('click', () => showAdminSection(button.dataset.target));});if (ui.showNewsForm) {ui.showNewsForm.addEventListener('click', () => {resetForms();toggleForm(ui.newsFormCard, true);});}if (ui.cancelNews) ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));if (ui.showGalleryForm) {ui.showGalleryForm.addEventListener('click', () => {resetForms();toggleForm(ui.galleryFormCard, true);});}if (ui.cancelGallery) ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));if (ui.showMovementForm) {ui.showMovementForm.addEventListener('click', () => {resetForms();toggleForm(ui.movementFormCard, true);});}if (ui.cancelMovement) ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));}function init() {addEventListeners();setupFormSubmissions();setupListActions();showAdminSection('dashboard');fetchContent();}init();

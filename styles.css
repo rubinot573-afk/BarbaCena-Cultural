@@ -482,3 +482,9 @@ button:hover {
   color: #222222 !important;
   background-color: #ffffff !important;
 }
+```css
+/* Correção definitiva para caixas de texto invisíveis */
+input, textarea, [id*="form"] input, [id*="form"] textarea {
+  color: #262626 !important;
+  background-color: #ffffff !important;
+}
