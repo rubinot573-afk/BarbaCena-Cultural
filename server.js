@@ -9,24 +9,54 @@ const PORT = process.env.PORT || 10000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve os arquivos estáticos do frontend (HTML, CSS, JS)
-app.use(express.static(path.join(__dirname)));
+// 🔒 FUNÇÃO DE SEGURANÇA (MIDDLEWARE)
+// Ela barra qualquer um que não envie o usuário e a senha corretos do Render
+const verificarAutenticacao = (req, res, next) => {
+  // Puxa as credenciais que salvamos no Render
+  const usuarioCorreto = process.env.ADMIN_USER;
+  const senhaCorreta = process.env.ADMIN_PASS;
 
-// Rota amigável para abrir a tela de admin
-app.get('/admin', (req, res) => {
+  // Se você não configurou no Render ainda, ele avisa no terminal mas deixa passar para você testar localmente
+  if (!usuarioCorreto || !senhaCorreta) {
+    console.log("⚠️ Variáveis ADMIN_USER ou ADMIN_PASS não configuradas. Segurança temporariamente desativada.");
+    return next();
+  }
+
+  // Puxa os dados que o navegador enviou na requisição (Header de Autenticação Básica)
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Área Restrita"');
+    return res.status(401).send('Acesso negado. Usuário ou senha necessários.');
+  }
+
+  // Decodifica o usuário e senha enviados pelo navegador
+  const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
+  const usuarioEnviado = auth[0];
+  const senhaEnviada = auth[1];
+
+  // Compara para ver se o login está correto
+  if (usuarioEnviado === usuarioCorreto && senhaEnviada === senhaCorreta) {
+    return next(); // Login correto! Pode prosseguir.
+  } else {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Área Restrita"');
+    return res.status(401).send('Usuário ou senha incorretos.');
+  }
+};
+
+// 🔒 PROTEÇÃO DA ROTA ADMIN: Só abre o painel se passar na segurança
+app.get('/admin', verificarAutenticacao, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+// Serve os demais arquivos estáticos do frontend (HTML, CSS, JS da parte pública)
+app.use(express.static(path.join(__dirname)));
+
 // Variáveis para o modo de testes caso o banco falhe
 let usarBancoLocal = false;
-let memoriaLocal = {
-  theme: {},
-  news: [],
-  gallery: [],
-  movements: []
-};
+let memoriaLocal = { theme: {}, news: [], gallery: [], movements: [] };
 
-// 🌟 DEFINIÇÃO DA VARIÁVEL: Puxa o link configurado no Render ou usa o local se estiver rodando no seu PC
+// DEFINIÇÃO DA VARIÁVEL DO MONGO
 const mongoURI = process.env.mongoURI || "mongodb://127.0.0.1:27017/portal-da-arte";
 
 // Conexão com o MongoDB Atlas ou Local
@@ -51,16 +81,11 @@ const Gallery = mongoose.model('Gallery', GallerySchema);
 const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
 const Movement = mongoose.model('Movement', MovementSchema);
 
-// ROTA GERAL: Carrega os dados locais ou do banco
+// ROTA GERAL PÚBLICA
 app.get('/api/content', async (req, res) => {
   try {
     if (usarBancoLocal) {
-      return res.json({ 
-        theme: {}, 
-        news: memoriaLocal.news, 
-        gallery: memoriaLocal.gallery, 
-        movements: memoriaLocal.movements 
-      });
+      return res.json({ theme: {}, news: memoriaLocal.news, gallery: memoriaLocal.gallery, movements: memoriaLocal.movements });
     }
     const news = await News.find();
     const gallery = await Gallery.find();
@@ -78,7 +103,8 @@ app.get('/api/news', async (req, res) => {
   res.json(news);
 });
 
-app.post('/api/news', async (req, res) => {
+// 🔒 PROTEGIDO: Só cria notícia se estiver logado
+app.post('/api/news', verificarAutenticacao, async (req, res) => {
   const item = req.body;
   if (!item.title || !item.content) return res.status(400).json({ error: 'Campos obrigatórios.' });
   item.date = new Date().toLocaleDateString('pt-BR');
@@ -93,7 +119,8 @@ app.post('/api/news', async (req, res) => {
   res.status(201).json(novaNoticia);
 });
 
-app.put('/api/news/:id', async (req, res) => {
+// 🔒 PROTEGIDO: Só edita se estiver logado
+app.put('/api/news/:id', verificarAutenticacao, async (req, res) => {
   if (usarBancoLocal) {
     const idx = memoriaLocal.news.findIndex(n => n._id === req.params.id);
     if (idx !== -1) memoriaLocal.news[idx] = { ...memoriaLocal.news[idx], ...req.body };
@@ -103,7 +130,8 @@ app.put('/api/news/:id', async (req, res) => {
   res.json(item);
 });
 
-app.delete('/api/news/:id', async (req, res) => {
+// 🔒 PROTEGIDO: Só deleta se estiver logado
+app.delete('/api/news/:id', verificarAutenticacao, async (req, res) => {
   if (usarBancoLocal) {
     memoriaLocal.news = memoriaLocal.news.filter(n => n._id !== req.params.id);
     return res.status(204).send();
@@ -119,7 +147,8 @@ app.get('/api/gallery', async (req, res) => {
   res.json(gallery);
 });
 
-app.post('/api/gallery', async (req, res) => {
+// 🔒 PROTEGIDO
+app.post('/api/gallery', verificarAutenticacao, async (req, res) => {
   const item = req.body;
   if (usarBancoLocal) {
     item._id = 'local_' + Date.now();
@@ -131,16 +160,6 @@ app.post('/api/gallery', async (req, res) => {
   res.status(201).json(novaFoto);
 });
 
-app.put('/api/gallery/:id', async (req, res) => {
-  if (usarBancoLocal) {
-    const idx = memoriaLocal.gallery.findIndex(g => g._id === req.params.id);
-    if (idx !== -1) memoriaLocal.gallery[idx] = { ...memoriaLocal.gallery[idx], ...req.body };
-    return res.json(memoriaLocal.gallery[idx]);
-  }
-  const item = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(item);
-});
-
 // --- ROTAS DE MOVIMENTOS ---
 app.get('/api/movements', async (req, res) => {
   if (usarBancoLocal) return res.json(memoriaLocal.movements);
@@ -148,7 +167,8 @@ app.get('/api/movements', async (req, res) => {
   res.json(movements);
 });
 
-app.post('/api/movements', async (req, res) => {
+// 🔒 PROTEGIDO
+app.post('/api/movements', verificarAutenticacao, async (req, res) => {
   const item = req.body;
   if (!item.name || !item.description) return res.status(400).json({ error: 'Campos obrigatórios.' });
   
@@ -162,26 +182,6 @@ app.post('/api/movements', async (req, res) => {
   res.status(201).json(novoMovimento);
 });
 
-app.put('/api/movements/:id', async (req, res) => {
-  if (usarBancoLocal) {
-    const idx = memoriaLocal.movements.findIndex(m => m._id === req.params.id);
-    if (idx !== -1) memoriaLocal.movements[idx] = { ...memoriaLocal.movements[idx], ...req.body };
-    return res.json(memoriaLocal.movements[idx]);
-  }
-  const item = await Movement.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(item);
-});
-
-app.delete('/api/movements/:id', async (req, res) => {
-  if (usarBancoLocal) {
-    memoriaLocal.movements = memoriaLocal.movements.filter(m => m._id !== req.params.id);
-    return res.status(204).send();
-  }
-  await Movement.findByIdAndDelete(req.params.id);
-  res.status(204).send();
-});
-
-// Inicialização do servidor na porta correta do Render
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
