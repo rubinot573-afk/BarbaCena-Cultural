@@ -94,7 +94,7 @@ app.get('/api/news', async (req, res) => {
   res.json(news);
 });
 
-// 🔒 🖼️ ROTA DE CRIAÇÃO: Protegida e com suporte a upload permanente para o Cloudinary
+// 🔒 🖼️ ROTA DE CRIAÇÃO CORRIGIDA: Upload super leve com Stream (Evita estourar o servidor)
 app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (req, res) => {
   try {
     const { title, content } = req.body;
@@ -102,12 +102,22 @@ app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (
 
     let imageUrl = req.body.image || ''; 
 
+    // Se houver um arquivo vindo do celular ou computador
     if (req.file) {
-      const fileBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-      const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
-        folder: 'portal_da_arte_noticias',
-      });
-      imageUrl = uploadResponse.secure_url; 
+      const uploadParaCloudinary = () => {
+        return new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: 'portal_da_arte_noticias' },
+            (error, result) => {
+              if (result) resolve(result.secure_url);
+              else reject(error);
+            }
+          );
+          stream.end(req.file.buffer);
+        });
+      };
+
+      imageUrl = await uploadParaCloudinary();
     }
 
     const item = {
