@@ -12,17 +12,15 @@ app.use(express.urlencoded({ extended: true }));
 // 🔒 FUNÇÃO DE SEGURANÇA (MIDDLEWARE)
 // Ela barra qualquer um que não envie o usuário e a senha corretos do Render
 const verificarAutenticacao = (req, res, next) => {
-  // Puxa as credenciais que salvamos no Render
   const usuarioCorreto = process.env.ADMIN_USER;
   const senhaCorreta = process.env.ADMIN_PASS;
 
-  // Se você não configurou no Render ainda, ele avisa no terminal mas deixa passar para você testar localmente
+  // Se você não configurou no Render ainda, ele avisa no terminal mas deixa passar para testes locais
   if (!usuarioCorreto || !senhaCorreta) {
     console.log("⚠️ Variáveis ADMIN_USER ou ADMIN_PASS não configuradas. Segurança temporariamente desativada.");
     return next();
   }
 
-  // Puxa os dados que o navegador enviou na requisição (Header de Autenticação Básica)
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
