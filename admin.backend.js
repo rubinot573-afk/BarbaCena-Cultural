@@ -163,14 +163,17 @@ async function fetchContent() {
   }
 }
 
-// 🖼️ FUNÇÃO DE ENVIO EXCLUSIVA PARA NOTÍCIAS (SUPORTA ARQUIVOS FÍSICOS)
+// 🖼️ FUNÇÃO DE ENVIO EXCLUSIVA PARA NOTÍCIAS (LEVA A SENHA PELA URL)
 async function enviarNoticiaComArquivo(formData, isEdit, id = '') {
-  const url = isEdit ? `/api/news/${id}` : '/api/news';
+  const urlParams = new URLSearchParams(window.location.search);
+  const senha = urlParams.get('senha') || '';
+
+  const url = isEdit ? `/api/news/${id}?senha=${senha}` : `/api/news?senha=${senha}`;
   const method = isEdit ? 'PUT' : 'POST';
 
   const response = await fetch(url, {
     method: method,
-    body: formData // Envia o FormData sem headers adicionais de JSON
+    body: formData
   });
 
   if (!response.ok) {
@@ -202,7 +205,7 @@ async function deleteData(url) {
 }
 
 function setupFormSubmissions() {
-  // CONFIGURAÇÃO DO FORMULÁRIO DE NOTÍCIAS ATUALIZADO PARA FORM DATA / CLOUDINARY
+  // FORMULÁRIO DE NOTÍCIAS (SUPORTA IMAGENS NO CLOUDINARY)
   if (ui.newsForm) {
     ui.newsForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -217,7 +220,7 @@ function setupFormSubmissions() {
       formData.append('content', content);
       
       if (fileInput && fileInput.files[0]) {
-        formData.append('imageFile', fileInput.files[0]); // Anexa o arquivo físico
+        formData.append('imageFile', fileInput.files[0]);
       }
 
       try {
@@ -235,7 +238,7 @@ function setupFormSubmissions() {
     });
   }
 
-  // FORMULÁRIO DA GALERIA (PADRÃO JSON)
+  // FORMULÁRIO DA GALERIA
   if (ui.galleryForm) {
     ui.galleryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -255,7 +258,7 @@ function setupFormSubmissions() {
     });
   }
 
-  // FORMULÁRIO DE MOVIMENTOS (PADRÃO JSON)
+  // FORMULÁRIO DE MOVIMENTOS
   if (ui.movementForm) {
     ui.movementForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -278,13 +281,11 @@ function setupFormSubmissions() {
 }
 
 function setupListActions() {
-  // EVENTO PARA EXCLUIR NOTÍCIAS DIRETO DA TELA ADMIN
+  // AÇÃO DE EXCLUSÃO DE NOTÍCIAS ENVIANDO A SENHA DO LINK
   if (ui.newsList) {
     ui.newsList.addEventListener('click', async (e) => {
       const action = e.target.dataset.action;
       const index = e.target.dataset.index;
       if (!action || !index || !state.news[index]) return;
-
-      if (action === 'remove-news') {
-        if (confirm('Tem certeza de que deseja excluir esta notícia permanentemente?')) {try {await deleteData(`/api/news/${state.news[index]._id}`);alert('Notícia excluída!');await fetchContent();} catch (error) {alert(error.message);}}}});}}function addEventListeners() {ui.navButtons.forEach((button) => {button.addEventListener('click', () => showAdminSection(button.dataset.target));});if (ui.showNewsForm) {ui.showNewsForm.addEventListener('click', () => {resetForms();toggleForm(ui.newsFormCard, true);});}if (ui.cancelNews) ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));if (ui.showGalleryForm) {ui.showGalleryForm.addEventListener('click', () => {resetForms();toggleForm(ui.galleryFormCard, true);});}if (ui.cancelGallery) ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));if (ui.showMovementForm) {ui.showMovementForm.addEventListener('click', () => {resetForms();toggleForm(ui.movementFormCard, true);});}if (ui.cancelMovement) ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));}function init() {addEventListeners();setupFormSubmissions();setupListActions();showAdminSection('dashboard');fetchContent();}
-        init();
+if (action === 'remove-news') {if (confirm('Tem certeza de que deseja excluir esta notícia permanentemente?')) {try {const urlParams = new URLSearchParams(window.location.search);const senha = urlParams.get('senha') || '';await deleteData(/api/news/${state.news[index]._id}?senha=${senha});alert('Notícia excluída com sucesso!');await fetchContent();} catch (error) {alert(error.message);}}}});}}function addEventListeners() {ui.navButtons.forEach((button) => {button.addEventListener('click', () => showAdminSection(button.dataset.target));});if (ui.showNewsForm) {ui.showNewsForm.addEventListener('click', () => {resetForms();toggleForm(ui.newsFormCard, true);});}if (ui.cancelNews) ui.cancelNews.addEventListener('click', () => toggleForm(ui.newsFormCard, false));if (ui.showGalleryForm) {ui.showGalleryForm.addEventListener('click', () => {resetForms();toggleForm(ui.galleryFormCard, true);});}if (ui.cancelGallery) ui.cancelGallery.addEventListener('click', () => toggleForm(ui.galleryFormCard, false));if (ui.showMovementForm) {ui.showMovementForm.addEventListener('click', () => {resetForms();toggleForm(ui.movementFormCard, true);});}if (ui.cancelMovement) ui.cancelMovement.addEventListener('click', () => toggleForm(ui.movementFormCard, false));}function init() {addEventListeners();setupFormSubmissions();setupListActions();showAdminSection('dashboard');fetchContent();}
+init();s
