@@ -3,9 +3,13 @@ const mongoose = require('mongoose');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
+// Configurações iniciais para ler JSON e formulários
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve os arquivos estáticos do frontend (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname)));
 
 // Rota amigável para abrir a tela de admin
@@ -13,16 +17,27 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// BANCO DE DADOS LOCAL EM MEMÓRIA (FALLBACK SE O MONGO LOCAL FALHAR)
+// Variáveis para o modo de testes caso o banco falhe
 let usarBancoLocal = false;
-let memoriaLocal = { news: [], gallery: [], movements: [] };
+let memoriaLocal = {
+  theme: {},
+  news: [],
+  gallery: [],
+  movements: []
+};
 
-const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/portal-da-arte";
+// 🌟 DEFINIÇÃO DA VARIÁVEL: Puxa o link configurado no Render ou usa o local se estiver rodando no seu PC
+const mongoURI = process.env.mongoURI || "mongodb://127.0.0.1:27017/portal-da-arte";
 
+// Conexão com o MongoDB Atlas ou Local
 mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 2000 })
-  .then(() => console.log("Conectado ao MongoDB com sucesso!"))
+  .then(() => {
+    console.log("🎉 Conectado ao MongoDB com sucesso! Suas notícias estão seguras agora.");
+    usarBancoLocal = false;
+  })
   .catch((erro) => {
-    console.log("⚠️ MongoDB local offline ou não instalado. Ativando modo local em memória para testes.");
+    console.log("⚠️ Falha ao conectar ao MongoDB. Ativando modo local em memória para testes.");
+    console.error("Detalhe do erro:", erro.message);
     usarBancoLocal = true;
   });
 
@@ -36,7 +51,7 @@ const Gallery = mongoose.model('Gallery', GallerySchema);
 const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
 const Movement = mongoose.model('Movement', MovementSchema);
 
-// CORREÇÃO: Estruturação correta do objeto JSON para o front público carregar os dados locais
+// ROTA GERAL: Carrega os dados locais ou do banco
 app.get('/api/content', async (req, res) => {
   try {
     if (usarBancoLocal) {
@@ -166,6 +181,7 @@ app.delete('/api/movements/:id', async (req, res) => {
   res.status(204).send();
 });
 
+// Inicialização do servidor na porta correta do Render
 app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
