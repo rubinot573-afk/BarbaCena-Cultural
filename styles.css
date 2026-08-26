@@ -474,3 +474,11 @@ button:hover {
         padding-left: 10px;
     }
 }
+/* Força o texto digitado a ficar visível e escuro dentro do painel admin */
+.form-card input, 
+.form-card textarea,
+#news-form input,
+#news-form textarea {
+  color: #222222 !important;
+  background-color: #ffffff !important;
+}
