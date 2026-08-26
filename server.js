@@ -21,17 +21,14 @@ const upload = multer({ storage: storage });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🔒 MIDDLEWARE DE SEGURANÇA CORRIGIDO (SISTEMA DE LINK SEGURO)
+// 🔒 MIDDLEWARE DE SEGURANÇA (SISTEMA DE LINK SEGURO)
 const verificarAutenticacao = (req, res, next) => {
-  const senhaCorreta = process.env.ADMIN_PASS || 'arte123'; // Puxa do Render ou usa padrão local
-  
-  // Lê a senha enviada no link (?senha=...) ou no corpo/headers da requisição
+  const senhaCorreta = process.env.ADMIN_PASS || 'arte123';
   const senhaEnviada = req.query.senha || req.body.senha || req.headers['x-admin-key'];
 
   if (senhaEnviada === senhaCorreta) {
-    return next(); // Senha correta! Libera o acesso.
+    return next();
   } else {
-    // Bloqueia com uma página informativa amigável
     return res.status(401).send(`
       <div style="font-family: sans-serif; text-align: center; margin-top: 100px; padding: 20px;">
         <h2 style="color: #6a0dad;">⚠️ Acesso Negado</h2>
@@ -69,7 +66,7 @@ mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 2000 })
 const NewsSchema = new mongoose.Schema({ title: String, content: String, date: String, image: String });
 const News = mongoose.model('News', NewsSchema);
 
-const GallerySchema = new mongoose.Schema({ title: String, image: String });
+const GallerySchema = new mongoose.Schema({ title: String, image: String, description: String });
 const Gallery = mongoose.model('Gallery', GallerySchema);
 
 const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
@@ -88,13 +85,13 @@ app.get('/api/content', async (req, res) => {
   }
 });
 
+// --- ROTAS DE NOTÍCIAS ---
 app.get('/api/news', async (req, res) => {
   if (usarBancoLocal) return res.json(memoriaLocal.news);
   const news = await News.find();
   res.json(news);
 });
 
-// 🔒 🖼️ ROTA DE CRIAÇÃO CORRIGIDA: Upload super leve com Stream (Evita estourar o servidor)
 app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (req, res) => {
   try {
     const { title, content } = req.body;
@@ -102,7 +99,6 @@ app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (
 
     let imageUrl = req.body.image || ''; 
 
-    // Se houver um arquivo vindo do celular ou computador
     if (req.file) {
       const uploadParaCloudinary = () => {
         return new Promise((resolve, reject) => {
@@ -116,16 +112,10 @@ app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (
           stream.end(req.file.buffer);
         });
       };
-
       imageUrl = await uploadParaCloudinary();
     }
 
-    const item = {
-      title,
-      content,
-      image: imageUrl,
-      date: new Date().toLocaleDateString('pt-BR')
-    };
+    const item = { title, content, image: imageUrl, date: new Date().toLocaleDateString('pt-BR') };
 
     if (usarBancoLocal) {
       item._id = 'local_' + Date.now();
@@ -142,24 +132,65 @@ app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (
   }
 });
 
-// Rotas de edição e deleção protegidas
-app.put('/api/news/:id', verificarAutenticacao, async (req, res) => {
-  if (usarBancoLocal) {
-    const idx = memoriaLocal.news.findIndex(n => n._id === req.params.id);
-    if (idx !== -1) memoriaLocal.news[idx] = { ...memoriaLocal.news[idx], ...req.body };
-    return res.json(memoriaLocal.news[idx]);
+app.delete('/api/news/:id', verificarAutenticacao, async (req, res) => {
+  try {
+    if (usarBancoLocal) {
+      memoriaLocal.news = memoriaLocal.news.filter(n => n._id !== req.params.id);
+      return res.status(204).send();
+    }
+    await News.findByIdAndDelete(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao excluir notícia.' });
   }
-  const item = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(item);
 });
 
-app.delete('/api/news/:id', verificarAutenticacao, async (req, res) => {
-  if (usarBancoLocal) {
-    memoriaLocal.news = memoriaLocal.news.filter(n => n._id !== req.params.id);
-    return res.status(204).send();
+// --- ROTAS DA GALERIA (CORRIGIDAS) ---
+app.get('/api/gallery', async (req, res) => {
+  if (usarBancoLocal) return res.json(memoriaLocal.gallery);
+  const gallery = await Gallery.find();
+  res.json(gallery);
+});
+
+app.post('/api/gallery', verificarAutenticacao, async (req, res) => {
+  try {
+    const item = req.body;
+    if (usarBancoLocal) {
+      item._id = 'local_' + Date.now();
+      memoriaLocal.gallery.push(item);
+      return res.status(201).json(item);
+    }
+    const novaFoto = new Gallery(item);
+    await novaFoto.save();
+    res.status(201).json(novaFoto);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao salvar foto.' });
   }
-  await News.findByIdAndDelete(req.params.id);
-  res.status(204).send();
+});
+
+// --- ROTAS DE MOVIMENTOS (RECUPERADAS PARA ELIMINAR O ERRO 404) ---
+app.get('/api/movements', async (req, res) => {
+  if (usarBancoLocal) return res.json(memoriaLocal.movements);
+  const movements = await Movement.find();
+  res.json(movements);
+});
+
+app.post('/api/movements', verificarAutenticacao, async (req, res) => {
+  try {
+    const item = req.body;
+    if (!item.name || !item.description) return res.status(400).json({ error: 'Campos obrigatórios.' });
+    
+    if (usarBancoLocal) {
+      item._id = 'local_' + Date.now();
+      memoriaLocal.movements.push(item);
+      return res.status(201).json(item);
+    }
+    const novoMovimento = new Movement(item);
+    await novoMovimento.save();
+    res.status(201).json(novoMovimento);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao salvar movimento.' });
+  }
 });
 
 app.listen(PORT, () => {
