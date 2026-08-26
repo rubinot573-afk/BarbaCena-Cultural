@@ -225,10 +225,10 @@ function setupFormSubmissions() {
       formData.append('title', title);
       formData.append('content', content);
       
-      if (fileInput && fileInput.files && fileInput.files[0]) {
-        formData.append('imageFile', fileInput.files[0]);
-      }
-
+      // ✅ CORREÇÃO DEFINITIVA: Pega o arquivo de imagem real do dispositivo
+if (fileInput && fileInput.files && fileInput.files[0]) {
+  formData.append('imageFile', fileInput.files[0]);
+}
       try {
         let id = '';
         if (isEdit && state.news[indexValue]) id = state.news[indexValue]._id;
