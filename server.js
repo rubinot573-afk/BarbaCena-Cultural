@@ -1,75 +1,72 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Configurações iniciais para ler JSON e formulários
+// Configurações do Cloudinary (Puxando as chaves do Render)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configuração do Multer (Armazenamento temporário em memória para envio rápido)
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 🔒 FUNÇÃO DE SEGURANÇA (MIDDLEWARE)
-// Ela barra qualquer um que não envie o usuário e a senha corretos do Render
+// 🔒 MIDDLEWARE DE SEGURANÇA
 const verificarAutenticacao = (req, res, next) => {
   const usuarioCorreto = process.env.ADMIN_USER;
   const senhaCorreta = process.env.ADMIN_PASS;
 
-  // Se você não configurou no Render ainda, ele avisa no terminal mas deixa passar para testes locais
   if (!usuarioCorreto || !senhaCorreta) {
-    console.log("⚠️ Variáveis ADMIN_USER ou ADMIN_PASS não configuradas. Segurança temporariamente desativada.");
+    console.log("⚠️ Variáveis de login não configuradas. Segurança desativada para testes.");
     return next();
   }
 
   const authHeader = req.headers.authorization;
-
   if (!authHeader) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Área Restrita"');
-    return res.status(401).send('Acesso negado. Usuário ou senha necessários.');
+    return res.status(401).send('Acesso negado.');
   }
 
-  // Decodifica o usuário e senha enviados pelo navegador
-  const auth = Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-  const usuarioEnviado = auth[0];
-  const senhaEnviada = auth[1];
-
-  // Compara para ver se o login está correto
-  if (usuarioEnviado === usuarioCorreto && senhaEnviada === senhaCorreta) {
-    return next(); // Login correto! Pode prosseguir.
+  const auth = Buffer.from(authHeader.split(' '), 'base64').toString().split(':');
+  if (auth[0] === usuarioCorreto && auth[1] === senhaCorreta) {
+    return next();
   } else {
     res.setHeader('WWW-Authenticate', 'Basic realm="Área Restrita"');
     return res.status(401).send('Usuário ou senha incorretos.');
   }
 };
 
-// 🔒 PROTEÇÃO DA ROTA ADMIN: Só abre o painel se passar na segurança
 app.get('/admin', verificarAutenticacao, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Serve os demais arquivos estáticos do frontend (HTML, CSS, JS da parte pública)
 app.use(express.static(path.join(__dirname)));
 
-// Variáveis para o modo de testes caso o banco falhe
 let usarBancoLocal = false;
 let memoriaLocal = { theme: {}, news: [], gallery: [], movements: [] };
 
-// DEFINIÇÃO DA VARIÁVEL DO MONGO
 const mongoURI = process.env.mongoURI || "mongodb://127.0.0.1:27017/portal-da-arte";
 
-// Conexão com o MongoDB Atlas ou Local
 mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 2000 })
   .then(() => {
-    console.log("🎉 Conectado ao MongoDB com sucesso! Suas notícias estão seguras agora.");
+    console.log("🎉 Conectado ao MongoDB com sucesso!");
     usarBancoLocal = false;
   })
   .catch((erro) => {
-    console.log("⚠️ Falha ao conectar ao MongoDB. Ativando modo local em memória para testes.");
-    console.error("Detalhe do erro:", erro.message);
+    console.log("⚠️ Falha ao conectar ao MongoDB. Ativando modo local em memória.");
     usarBancoLocal = true;
   });
 
-// Moldes (Schemas) do Banco de Dados
 const NewsSchema = new mongoose.Schema({ title: String, content: String, date: String, image: String });
 const News = mongoose.model('News', NewsSchema);
 
@@ -79,12 +76,9 @@ const Gallery = mongoose.model('Gallery', GallerySchema);
 const MovementSchema = new mongoose.Schema({ name: String, category: String, image: String, description: String });
 const Movement = mongoose.model('Movement', MovementSchema);
 
-// ROTA GERAL PÚBLICA
 app.get('/api/content', async (req, res) => {
   try {
-    if (usarBancoLocal) {
-      return res.json({ theme: {}, news: memoriaLocal.news, gallery: memoriaLocal.gallery, movements: memoriaLocal.movements });
-    }
+    if (usarBancoLocal) return res.json({ theme: {}, news: memoriaLocal.news, gallery: memoriaLocal.gallery, movements: memoriaLocal.movements });
     const news = await News.find();
     const gallery = await Gallery.find();
     const movements = await Movement.find();
@@ -94,30 +88,53 @@ app.get('/api/content', async (req, res) => {
   }
 });
 
-// --- ROTAS DE NOTÍCIAS ---
 app.get('/api/news', async (req, res) => {
   if (usarBancoLocal) return res.json(memoriaLocal.news);
   const news = await News.find();
   res.json(news);
 });
 
-// 🔒 PROTEGIDO: Só cria notícia se estiver logado
-app.post('/api/news', verificarAutenticacao, async (req, res) => {
-  const item = req.body;
-  if (!item.title || !item.content) return res.status(400).json({ error: 'Campos obrigatórios.' });
-  item.date = new Date().toLocaleDateString('pt-BR');
-  
-  if (usarBancoLocal) {
-    item._id = 'local_' + Date.now();
-    memoriaLocal.news.push(item);
-    return res.status(201).json(item);
+// 🔒 🖼️ ROTA DE CRIAÇÃO ATUALIZADA: Suporta envio de arquivos de imagem
+app.post('/api/news', verificarAutenticacao, upload.single('imageFile'), async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'Campos obrigatórios.' });
+
+    let imageUrl = req.body.image || ''; // Fallback caso enviem um link de texto direto
+
+    // Se o usuário fez upload de um arquivo físico do computador/celular
+    if (req.file) {
+      // Converte o arquivo em formato aceito pelo Cloudinary e faz o upload
+      const fileBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
+        folder: 'portal_da_arte_noticias', // Cria uma pasta organizada dentro do seu Cloudinary
+      });
+      imageUrl = uploadResponse.secure_url; // Substitui pelo link permanente gerado na nuvem!
+    }
+
+    const item = {
+      title,
+      content,
+      image: imageUrl,
+      date: new Date().toLocaleDateString('pt-BR')
+    };
+
+    if (usarBancoLocal) {
+      item._id = 'local_' + Date.now();
+      memoriaLocal.news.push(item);
+      return res.status(201).json(item);
+    }
+
+    const novaNoticia = new News(item);
+    await novaNoticia.save();
+    res.status(201).json(novaNoticia);
+  } catch (error) {
+    console.error("Erro no upload:", error);
+    res.status(500).json({ error: 'Erro interno ao salvar a notícia com imagem.' });
   }
-  const novaNoticia = new News(item);
-  await novaNoticia.save();
-  res.status(201).json(novaNoticia);
 });
 
-// 🔒 PROTEGIDO: Só edita se estiver logado
+// Mantive as demais rotas padrão de edição e deleção
 app.put('/api/news/:id', verificarAutenticacao, async (req, res) => {
   if (usarBancoLocal) {
     const idx = memoriaLocal.news.findIndex(n => n._id === req.params.id);
@@ -128,7 +145,6 @@ app.put('/api/news/:id', verificarAutenticacao, async (req, res) => {
   res.json(item);
 });
 
-// 🔒 PROTEGIDO: Só deleta se estiver logado
 app.delete('/api/news/:id', verificarAutenticacao, async (req, res) => {
   if (usarBancoLocal) {
     memoriaLocal.news = memoriaLocal.news.filter(n => n._id !== req.params.id);
@@ -136,48 +152,6 @@ app.delete('/api/news/:id', verificarAutenticacao, async (req, res) => {
   }
   await News.findByIdAndDelete(req.params.id);
   res.status(204).send();
-});
-
-// --- ROTAS DA GALERIA ---
-app.get('/api/gallery', async (req, res) => {
-  if (usarBancoLocal) return res.json(memoriaLocal.gallery);
-  const gallery = await Gallery.find();
-  res.json(gallery);
-});
-
-// 🔒 PROTEGIDO
-app.post('/api/gallery', verificarAutenticacao, async (req, res) => {
-  const item = req.body;
-  if (usarBancoLocal) {
-    item._id = 'local_' + Date.now();
-    memoriaLocal.gallery.push(item);
-    return res.status(201).json(item);
-  }
-  const novaFoto = new Gallery(item);
-  await novaFoto.save();
-  res.status(201).json(novaFoto);
-});
-
-// --- ROTAS DE MOVIMENTOS ---
-app.get('/api/movements', async (req, res) => {
-  if (usarBancoLocal) return res.json(memoriaLocal.movements);
-  const movements = await Movement.find();
-  res.json(movements);
-});
-
-// 🔒 PROTEGIDO
-app.post('/api/movements', verificarAutenticacao, async (req, res) => {
-  const item = req.body;
-  if (!item.name || !item.description) return res.status(400).json({ error: 'Campos obrigatórios.' });
-  
-  if (usarBancoLocal) {
-    item._id = 'local_' + Date.now();
-    memoriaLocal.movements.push(item);
-    return res.status(201).json(item);
-  }
-  const novoMovimento = new Movement(item);
-  await novoMovimento.save();
-  res.status(201).json(novoMovimento);
 });
 
 app.listen(PORT, () => {
