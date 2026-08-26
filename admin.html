@@ -44,7 +44,8 @@
 
         <div id="news-form-card" class="form-card hidden">
           <h3 id="news-form-title">Nova notícia</h3>
-          <form id="news-form">
+          <!-- ADICIONADO enctype PARA PERMITIR ENVIO DE ARQUIVOS -->
+          <form id="news-form" enctype="multipart/form-data">
             <input type="hidden" id="news-index" value="" />
             <label>
               Título
@@ -54,9 +55,10 @@
               Texto
               <textarea id="news-content" rows="4" placeholder="Conteúdo da notícia" required></textarea>
             </label>
+            <!-- ALTERADO: AGORA SELECIONA UM ARQUIVO DE IMAGEM DO SEU DISPOSITIVO -->
             <label>
-              URL da imagem
-              <input type="url" id="news-image" placeholder="https://..." />
+              Selecione a Imagem da Notícia
+              <input type="file" id="news-image-file" accept="image/*" />
             </label>
             <div class="form-actions">
               <button type="submit" class="primary-button">Salvar</button>
@@ -124,7 +126,6 @@
               Categoria
               <input type="text" id="movement-category" placeholder="Categoria (arte de rua, performance, etc.)" />
             </label>
-            <!-- CORREÇÃO: ADICIONADO O CAMPO DE IMAGEM COM FORMATO TEXT FLEXÍVEL -->
             <label>
               URL ou Caminho da imagem
               <input type="text" id="movement-image" placeholder="images/foto.jpg ou https://..." />
